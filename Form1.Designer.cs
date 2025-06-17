@@ -40,6 +40,8 @@
 			this.btSetSymbols = new System.Windows.Forms.Button();
 			this.tbCurrentSymbols = new System.Windows.Forms.TextBox();
 			this.label3 = new System.Windows.Forms.Label();
+			this.btRecoverPath = new System.Windows.Forms.Button();
+			this.btDetectEncoding = new System.Windows.Forms.Button();
 			this.SuspendLayout();
 			// 
 			// btSelectRoot
@@ -105,7 +107,7 @@
 			// btCompare
 			// 
 			this.btCompare.Font = new System.Drawing.Font("宋体", 14F);
-			this.btCompare.Location = new System.Drawing.Point(12, 143);
+			this.btCompare.Location = new System.Drawing.Point(12, 170);
 			this.btCompare.Name = "btCompare";
 			this.btCompare.Size = new System.Drawing.Size(262, 53);
 			this.btCompare.TabIndex = 7;
@@ -116,24 +118,24 @@
 			// treeView1
 			// 
 			this.treeView1.Font = new System.Drawing.Font("宋体", 14F);
-			this.treeView1.Location = new System.Drawing.Point(12, 214);
+			this.treeView1.Location = new System.Drawing.Point(12, 229);
 			this.treeView1.Name = "treeView1";
-			this.treeView1.Size = new System.Drawing.Size(983, 567);
+			this.treeView1.Size = new System.Drawing.Size(983, 552);
 			this.treeView1.TabIndex = 8;
 			// 
 			// tbCompareResult
 			// 
-			this.tbCompareResult.Font = new System.Drawing.Font("宋体", 14F);
-			this.tbCompareResult.Location = new System.Drawing.Point(324, 157);
+			this.tbCompareResult.Font = new System.Drawing.Font("宋体", 18F);
+			this.tbCompareResult.Location = new System.Drawing.Point(324, 179);
 			this.tbCompareResult.Name = "tbCompareResult";
 			this.tbCompareResult.ReadOnly = true;
-			this.tbCompareResult.Size = new System.Drawing.Size(286, 29);
+			this.tbCompareResult.Size = new System.Drawing.Size(286, 35);
 			this.tbCompareResult.TabIndex = 9;
 			// 
 			// btSetSymbols
 			// 
 			this.btSetSymbols.Font = new System.Drawing.Font("宋体", 14F);
-			this.btSetSymbols.Location = new System.Drawing.Point(692, 160);
+			this.btSetSymbols.Location = new System.Drawing.Point(692, 177);
 			this.btSetSymbols.Name = "btSetSymbols";
 			this.btSetSymbols.Size = new System.Drawing.Size(177, 36);
 			this.btSetSymbols.TabIndex = 10;
@@ -144,7 +146,7 @@
 			// tbCurrentSymbols
 			// 
 			this.tbCurrentSymbols.Font = new System.Drawing.Font("宋体", 14F);
-			this.tbCurrentSymbols.Location = new System.Drawing.Point(692, 125);
+			this.tbCurrentSymbols.Location = new System.Drawing.Point(692, 132);
 			this.tbCurrentSymbols.Name = "tbCurrentSymbols";
 			this.tbCurrentSymbols.ReadOnly = true;
 			this.tbCurrentSymbols.Size = new System.Drawing.Size(307, 29);
@@ -154,17 +156,40 @@
 			// 
 			this.label3.AutoSize = true;
 			this.label3.Font = new System.Drawing.Font("宋体", 14F);
-			this.label3.Location = new System.Drawing.Point(688, 87);
+			this.label3.Location = new System.Drawing.Point(688, 90);
 			this.label3.Name = "label3";
 			this.label3.Size = new System.Drawing.Size(218, 19);
 			this.label3.TabIndex = 12;
 			this.label3.Text = "当前选定字符串分隔符：";
 			// 
+			// btRecoverPath
+			// 
+			this.btRecoverPath.Font = new System.Drawing.Font("宋体", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+			this.btRecoverPath.Location = new System.Drawing.Point(12, 128);
+			this.btRecoverPath.Name = "btRecoverPath";
+			this.btRecoverPath.Size = new System.Drawing.Size(262, 35);
+			this.btRecoverPath.TabIndex = 13;
+			this.btRecoverPath.Text = "重建目录结构";
+			this.btRecoverPath.UseVisualStyleBackColor = true;
+			// 
+			// btDetectEncoding
+			// 
+			this.btDetectEncoding.Font = new System.Drawing.Font("宋体", 12F);
+			this.btDetectEncoding.Location = new System.Drawing.Point(324, 130);
+			this.btDetectEncoding.Name = "btDetectEncoding";
+			this.btDetectEncoding.Size = new System.Drawing.Size(286, 35);
+			this.btDetectEncoding.TabIndex = 14;
+			this.btDetectEncoding.Text = "检测基础语言编码";
+			this.btDetectEncoding.UseVisualStyleBackColor = true;
+			// 
 			// Form1
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+			this.AutoScroll = true;
 			this.ClientSize = new System.Drawing.Size(1011, 805);
+			this.Controls.Add(this.btDetectEncoding);
+			this.Controls.Add(this.btRecoverPath);
 			this.Controls.Add(this.label3);
 			this.Controls.Add(this.tbCurrentSymbols);
 			this.Controls.Add(this.btSetSymbols);
@@ -199,6 +224,8 @@
 		private System.Windows.Forms.Button btSetSymbols;
 		private System.Windows.Forms.TextBox tbCurrentSymbols;
 		private System.Windows.Forms.Label label3;
+		private System.Windows.Forms.Button btRecoverPath;
+		private System.Windows.Forms.Button btDetectEncoding;
 	}
 }
 

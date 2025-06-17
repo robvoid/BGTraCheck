@@ -30,7 +30,7 @@ namespace BGTraChecker
 			LoadLastFolder();
 			LoadDefaultPatterns();
 			LoadCurrentPatterns();
-
+			treeView1.Scrollable = true;
 		}
 
 		private void LoadDefaultPatterns()
