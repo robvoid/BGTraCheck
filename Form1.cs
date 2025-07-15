@@ -11,6 +11,7 @@ using System.Windows.Forms;
 using Ude;
 using System.Text.RegularExpressions;
 using Ude.Core;
+using System.Net.Configuration;
 
 namespace BGTraChecker
 {
@@ -406,7 +407,6 @@ namespace BGTraChecker
 							tCnt++;
 							
 						}
-
 						curLine += tCnt;
 						continue;
 					}
@@ -425,7 +425,6 @@ namespace BGTraChecker
 						curLine++;
 						continue;
 					}
-
 					curLine++;
 				}
 
@@ -439,32 +438,42 @@ namespace BGTraChecker
 			}
 		}
 
+		private bool CheckJob(bool checkDst=true)
+		{
+			tbCompareResult.Text = "";
+			if (treeView1?.Nodes.Count > 0)
+			{
+				treeView1?.Nodes.Clear();
+			}
+			int idxSrc = cbSRCLang.SelectedIndex;
+			int idxDst = cbDstLang.SelectedIndex;
+			if (idxSrc < 0 || idxDst < 0)
+			{
+				MessageBox.Show("请先选择语言!");
+				return false;
+			}
+			if (idxSrc == idxDst)
+			{
+				MessageBox.Show("请选择不同语言！");
+				return false;
+			}
+
+			if (!bPrepared)
+			{
+				MessageBox.Show("路径未选择！");
+				return false;
+			}
+			return true;
+		}
+
+
 		private void btCompare_Click(object sender, EventArgs e)
 		{
 			try
 			{
 				bool bAllPass = true;
-				tbCompareResult.Text = "";
-				if (treeView1?.Nodes.Count > 0)
+				if(!CheckJob())
 				{
-					treeView1?.Nodes.Clear();
-				}
-				int idxSrc = cbSRCLang.SelectedIndex;
-				int idxDst = cbDstLang.SelectedIndex;
-				if (idxSrc < 0 || idxDst < 0)
-				{
-					MessageBox.Show("请先选择语言!");
-					return;
-				}
-				if (idxSrc == idxDst)
-				{
-					MessageBox.Show("请选择不同语言！");
-					return;
-				}
-
-				if (!bPrepared)
-				{
-					MessageBox.Show("路径未选择！");
 					return;
 				}
 
@@ -485,25 +494,35 @@ namespace BGTraChecker
 					return;
 				}
 
-				string[] srcTras = Directory.GetFiles(srcDirName, "*.tra");
-				string[] dstTras = Directory.GetFiles(dstDirName, "*.tra");
-
-
+				string[] srcTras = Directory.GetFiles(srcDirName, "*.tra",SearchOption.AllDirectories);
+				string[] dstTras = Directory.GetFiles(dstDirName, "*.tra",SearchOption.AllDirectories);
 
 				Dictionary<string, string> srcPaths = new Dictionary<string, string>();
 				Dictionary<string, string> dstPaths = new Dictionary<string, string>();
-				Dictionary<string, Tuple<string, string>> mutalPaths = new Dictionary<string, Tuple<string, string>>();
+				SortedDictionary<string, Tuple<string, string>> mutalPaths = new SortedDictionary<string, Tuple<string, string>>();
 
 				for (int i = 0; i < srcTras.Length; ++i)
 				{
-					string lastName = Path.GetFileName(srcTras[i]);
-					srcPaths.Add(lastName, srcTras[i]);
+					//string lastName = Path.GetFileName(srcTras[i]);
+					var rela = GetRelativePath(srcDirName, srcTras[i]);
+					if (!rela.flag)
+					{
+						MessageBox.Show($"无法获取相对路径: {srcTras[i]}");
+						continue;
+					}
+					srcPaths.Add(rela.p, srcTras[i]);
 				}
 
 				for (int i = 0; i < dstTras.Length; ++i)
 				{
-					string lastName = Path.GetFileName(dstTras[i]);
-					dstPaths.Add(lastName, dstTras[i]);
+					//string lastName = Path.GetFileName(dstTras[i]);
+					var rela = GetRelativePath(dstDirName, dstTras[i]);
+					if (!rela.flag)
+					{
+						MessageBox.Show($"无法获取相对路径: {dstTras[i]}");
+						continue;
+					}
+					dstPaths.Add(rela.p, dstTras[i]);
 				}
 
 				TreeNode nodeSrcOny = new TreeNode($"{srcLangName}有但{dstLangName}缺失");
@@ -512,7 +531,6 @@ namespace BGTraChecker
 				TreeNode nodeEncodingMisMatch = new TreeNode($"{srcLangName}与{dstLangName}文件编码不同");
 				TreeNode nodeError = new TreeNode("文件错误");
 				TreeNode nodeDup = new TreeNode("重复tra编号");
-
 
 				foreach (var src in srcPaths)
 				{
@@ -815,6 +833,333 @@ namespace BGTraChecker
 			{
 				SetCurrentWithDefault();
 				MessageBox.Show($"构建正则错误: {ex.Message}, 使用默认模式");
+			}
+		}
+
+		private void btDetectEncoding_Click(object sender, EventArgs e)
+		{
+			if(!CheckJob())
+			{
+				return;
+			}
+			string srcLangName = cbSRCLang.SelectedItem.ToString();
+			string srcDirName = Path.Combine(selectedRoot, srcLangName);
+			if (!Directory.Exists(srcDirName))
+			{
+				MessageBox.Show($"路径不存在: {srcDirName}");
+				return;
+			}
+			string[] srcTras = Directory.GetFiles(srcDirName, "*.tra",SearchOption.AllDirectories);
+
+			SortedDictionary<string, string> srcPaths = new SortedDictionary<string, string>();
+			for (int i = 0; i < srcTras.Length; ++i)
+			{
+				var rela = GetRelativePath(srcDirName, srcTras[i]);
+				if(!rela.flag)
+				{
+					MessageBox.Show(rela.p);
+					return;
+				}
+				srcPaths.Add(rela.p, srcTras[i]);
+			}
+
+			TreeNode tNode1 = new TreeNode($"{srcLangName}编码检测结果");
+			tNode1.Name = "Encoding";
+			treeView1.Nodes.Add(tNode1);
+
+			int totalCnt = srcPaths.Count;
+			int okCnt = 0;
+			foreach (var kvp in srcPaths)
+			{
+				try
+				{
+					string srcEnc = null;
+					using (FileStream fs = File.OpenRead(kvp.Value))
+					{
+						Ude.CharsetDetector detector = new Ude.CharsetDetector();
+						detector.Feed(fs);
+						detector.DataEnd();
+						srcEnc = detector.Charset;
+					}
+
+
+					TreeNode node = new TreeNode($"{kvp.Key} 编码: {srcEnc}");
+					treeView1.Nodes["Encoding"].Nodes.Add(node);
+					okCnt++;
+				}
+				catch(Exception ex)
+				{
+					TreeNode node = new TreeNode($"{kvp.Key} 检测失败: {ex.Message}");
+				}
+			}
+			tbCompareResult.Text = $"{okCnt}/{totalCnt}编码检测完成";
+
+		}
+
+		private (bool flag, string p) GetRelativePath(string fromPath, string toPath)
+		{
+			if (string.IsNullOrEmpty(fromPath)) return (false, $"路径不存在: {fromPath}");
+			if (string.IsNullOrEmpty(toPath)) return (false, $"路径不存在: {toPath}");
+			
+
+			// 规范化路径并添加目录分隔符
+			fromPath = Path.GetFullPath(fromPath);
+			toPath = Path.GetFullPath(toPath);
+
+			// 检查是否在同一根目录下（如C:\或D:\）
+			string fromRoot = Path.GetPathRoot(fromPath);
+			string toRoot = Path.GetPathRoot(toPath);
+
+			if (!string.Equals(fromRoot, toRoot, StringComparison.OrdinalIgnoreCase))
+				return (true,toPath); // 不同根目录，返回绝对路径
+
+			// 分割路径为目录数组
+			string[] fromDirs = fromPath.Substring(fromRoot.Length).Split(
+				new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+				StringSplitOptions.RemoveEmptyEntries);
+
+			string[] toDirs = toPath.Substring(toRoot.Length).Split(
+				new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+				StringSplitOptions.RemoveEmptyEntries);
+
+			// 计算公共前缀长度
+			int commonLength = 0;
+			while (commonLength < fromDirs.Length &&
+				   commonLength < toDirs.Length &&
+				   string.Equals(fromDirs[commonLength], toDirs[commonLength], StringComparison.OrdinalIgnoreCase))
+			{
+				commonLength++;
+			}
+
+			// 构建相对路径
+			var relativePath = new System.Text.StringBuilder();
+
+			// 添加"../"直到回到公共目录
+			for (int i = commonLength; i < fromDirs.Length; i++)
+			{
+				relativePath.Append("..");
+				relativePath.Append(Path.DirectorySeparatorChar);
+			}
+
+			// 添加目标目录的剩余部分
+			for (int i = commonLength; i < toDirs.Length; i++)
+			{
+				relativePath.Append(toDirs[i]);
+				relativePath.Append(Path.DirectorySeparatorChar);
+			}
+
+			// 如果是文件路径，移除最后的分隔符
+			if (!toPath.EndsWith(Path.DirectorySeparatorChar.ToString()) &&
+				!toPath.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
+			{
+				if (relativePath.Length > 0)
+					relativePath.Length -= 1;
+			}
+
+			return (true,relativePath.ToString());
+		}
+
+		private void btRecoverPath_Click(object sender, EventArgs e)
+		{
+			if (!CheckJob())
+			{
+				return;
+			}
+			try
+			{
+				string srcLangName = cbSRCLang.SelectedItem.ToString();
+				string dstLangName = cbDstLang.SelectedItem.ToString();
+
+				string srcDirName = Path.Combine(selectedRoot, srcLangName);
+				string dstDirName = Path.Combine(selectedRoot, dstLangName);
+
+				if (!Directory.Exists(srcDirName))
+				{
+					MessageBox.Show($"路径不存在: {srcDirName}");
+					return;
+				}
+				if (!Directory.Exists(dstDirName))
+				{
+					MessageBox.Show($"路径不存在: {dstDirName}");
+					return;
+				}
+
+				string[] srcTras = Directory.GetFiles(srcDirName, "*.tra", SearchOption.AllDirectories);
+				string[] dstTras = Directory.GetFiles(dstDirName, "*.tra", SearchOption.AllDirectories);
+
+				Dictionary<string, Tuple<string, string>> srcPaths = new Dictionary<string, Tuple<string, string>>();
+				Dictionary<string, Tuple<string, string>> dstPaths = new Dictionary<string, Tuple<string, string>>();
+
+
+				List<string> srcHit = new List<string>();
+				List<string> srcNotInDst = new List<string>();
+				List<string> dstNotInSrc = new List<string>();
+
+				TreeNode nodeDstNotInSrc = new TreeNode($"{dstLangName}有但{srcLangName}缺失(未移动)");
+				nodeDstNotInSrc.Name = "DstNotInSrc";
+				treeView1.Nodes.Add(nodeDstNotInSrc);
+				TreeNode nodeSrcNotInDst = new TreeNode($"{srcLangName}有但{dstLangName}缺失(未移动)");
+				nodeSrcNotInDst.Name = "SrcNotInDst";
+				treeView1.Nodes.Add(nodeSrcNotInDst);
+				TreeNode nodeDupTra = new TreeNode("重复TRA文件(未移动)");
+				nodeDupTra.Name = "DupTra";
+				treeView1.Nodes.Add(nodeDupTra);
+				TreeNode nodeErrTra = new TreeNode("错误TRA文件(未移动)");
+				nodeErrTra.Name = "ErrTra";
+				treeView1.Nodes.Add(nodeErrTra);
+				TreeNode nodeStats = new TreeNode("结果统计");
+				nodeStats.Name = "Stats";
+				treeView1.Nodes.Add(nodeStats);
+
+				int dstCnt = dstTras.Length;
+				int dirCreated = 0;
+				int fileMoved = 0;
+				int fileNotMoved = 0;
+				int errCnt = 0;
+
+				for (int i = 0; i < srcTras.Length; ++i)
+				{
+					var rela = GetRelativePath(srcDirName, srcTras[i]);
+					if (!rela.flag)
+					{
+						errCnt++;
+						nodeErrTra.Nodes.Add(new TreeNode($"无法获取相对路径: {srcTras[i]}"));
+						continue;
+					}
+					string baseName = Path.GetFileName(rela.p);
+					if (srcPaths.ContainsKey(baseName))
+					{
+						var tt = srcPaths[baseName];
+						string nodeTxt = $"{srcLangName}{tt.Item1}已存在，{rela.p}请手工处理";
+						treeView1.Nodes["DupTra"].Nodes.Add(new TreeNode(nodeTxt));
+						continue;
+					}
+					else
+					{
+						srcPaths.Add(Path.GetFileName(rela.p), Tuple.Create(rela.p, srcTras[i]));
+					}
+				}
+				for (int i = 0; i < dstTras.Length; ++i)
+				{
+					var rela = GetRelativePath(dstDirName, dstTras[i]);
+					if (!rela.flag)
+					{
+						nodeErrTra.Nodes.Add(new TreeNode($"无法获取相对路径: {dstTras[i]}"));
+						fileNotMoved++;
+						errCnt++;
+						continue;
+					}
+					if (dstPaths.ContainsKey(Path.GetFileName(rela.p)))
+					{
+						var tt = dstPaths[Path.GetFileName(rela.p)];
+						string nodeTxt = $"{dstLangName}{tt.Item1}已存在，{rela.p}请手工处理";
+						treeView1.Nodes["DupTra"].Nodes.Add(new TreeNode(nodeTxt));
+						fileNotMoved++;
+						continue;
+					}
+					else
+					{
+						dstPaths.Add(Path.GetFileName(rela.p), Tuple.Create(rela.p, dstTras[i]));
+					}
+				}
+
+				
+
+				foreach (var kvp in dstPaths)
+				{
+					string dstName = kvp.Key;
+					string dstRelativePath = kvp.Value.Item1;
+					if (!srcPaths.ContainsKey(dstName))
+					{
+						dstNotInSrc.Add(dstName);
+						TreeNode node = new TreeNode(dstRelativePath);
+						treeView1.Nodes["DstNotInSrc"].Nodes.Add(node);
+						fileNotMoved++;
+					}
+				}
+
+
+				foreach (var kvp in srcPaths)
+				{
+					string srcName = kvp.Key;
+					if (dstPaths.ContainsKey(srcName))
+					{
+						srcHit.Add(srcName);
+					}
+					else
+					{
+						srcNotInDst.Add(srcName);
+						TreeNode node = new TreeNode(kvp.Value.Item1);
+						treeView1.Nodes["SrcNotInDst"].Nodes.Add(node);
+						fileNotMoved++;
+					}
+				}
+
+				foreach(string key in srcHit)
+				{
+					var pair_src = srcPaths[key];
+					var pair_dst = dstPaths[key];
+
+					string sub = Path.GetDirectoryName(pair_src.Item1);
+					if (string.IsNullOrEmpty(sub))
+					{
+						fileNotMoved++;
+						continue;
+					}
+					string sub_in_dst = Path.Combine(dstDirName, sub);
+					if(!Directory.Exists(sub_in_dst))
+					{
+						try
+						{
+							Directory.CreateDirectory(sub_in_dst);
+							dirCreated++;
+							
+						}
+						catch (Exception ex)
+						{
+							MessageBox.Show($"创建目录失败: {sub_in_dst}, 错误: {ex.Message}");
+							continue;
+						}
+					}
+					string target_path = Path.Combine(sub_in_dst, key);
+					if (!File.Exists(target_path))
+					{
+						File.Move(pair_dst.Item2, target_path);
+						fileMoved++;
+					}
+
+				}
+
+
+
+				if (nodeDstNotInSrc.Nodes.Count == 0)
+				{
+					nodeDstNotInSrc.Nodes.Add(new TreeNode("无"));
+				}
+				if (nodeSrcNotInDst.Nodes.Count == 0)
+				{
+					nodeSrcNotInDst.Nodes.Add(new TreeNode("无"));
+				}
+				if(nodeDupTra.Nodes.Count == 0)
+				{
+					nodeDupTra.Nodes.Add(new TreeNode("无"));
+				}
+				if(nodeErrTra.Nodes.Count == 0)
+				{
+					nodeErrTra.Nodes.Add(new TreeNode("无"));
+				}
+				nodeStats.Nodes.Add(new TreeNode($"目标语言{dstLangName}包含TRA数量: {srcPaths.Count}"));
+				nodeStats.Nodes.Add(new TreeNode($"创建目录数: {dirCreated}"));
+				nodeStats.Nodes.Add(new TreeNode($"移动文件数: {fileMoved}"));
+				nodeStats.Nodes.Add(new TreeNode($"未移动文件数: {fileNotMoved}"));
+				nodeStats.Nodes.Add(new TreeNode($"文件错误数: {errCnt}"));
+
+				tbCompareResult.Text = "重建路径完成";
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"内部错误: {ex.StackTrace}");
+				return;
 			}
 		}
 	}

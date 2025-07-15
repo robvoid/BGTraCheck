@@ -171,6 +171,7 @@
 			this.btRecoverPath.TabIndex = 13;
 			this.btRecoverPath.Text = "重建目录结构";
 			this.btRecoverPath.UseVisualStyleBackColor = true;
+			this.btRecoverPath.Click += new System.EventHandler(this.btRecoverPath_Click);
 			// 
 			// btDetectEncoding
 			// 
@@ -181,6 +182,7 @@
 			this.btDetectEncoding.TabIndex = 14;
 			this.btDetectEncoding.Text = "检测基础语言编码";
 			this.btDetectEncoding.UseVisualStyleBackColor = true;
+			this.btDetectEncoding.Click += new System.EventHandler(this.btDetectEncoding_Click);
 			// 
 			// Form1
 			// 
